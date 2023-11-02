@@ -1,0 +1,93 @@
+parameters:
+- name: File_Name
+  type: string
+# Example /infra/ARM-Landing-Zone/CSV/TASMU/LZ_generic_infra_Test.yaml
+
+
+resources:
+  repositories:
+  - repository: self
+    type: git
+    ref: refs/heads/Kartik_landing_zone
+jobs:
+- job: Job_1
+  displayName: Agent job 1
+  pool:
+    vmImage: windows-latest
+  steps:
+  - checkout: self
+    fetchDepth: 1
+  - task: UsePythonVersion@0
+    displayName: Use Python 3.x
+  - task: CmdLine@2
+    displayName: Command Line Script
+    inputs:
+      script: >
+        pip install pandas
+        pip install openpyxl
+        pip install colorama
+
+
+  - task: CmdLine@2
+    displayName: Run Python Script with Cmd
+    inputs:
+      script: >-
+        
+        python infra\ARM-Landing-Zone\LDZ\LZ_generic_infra\gen.py ${{ parameters.File_Name }} 
+        dir
+  - task: Bash@3
+    displayName: Bash Script 01
+    inputs:
+      targetType: inline
+      script: >+
+        cp TF_auto_var.auto.tfvars infra/ARM-Landing-Zone/LDZ/LZ_generic_infra/TF_auto_var.auto.tfvars
+
+  - task: Bash@3
+    displayName: Bash Script 02
+    inputs:
+      targetType: inline
+      script: >+
+       ls infra/ARM-Landing-Zone/LDZ/LZ_generic_infra/
+        
+ 
+  - task: TerraformInstaller@0
+    displayName: 'Install Terraform '
+  - task: TerraformTaskV3@3
+    displayName: 'Terraform : init'
+    inputs:
+      workingDirectory: infra/ARM-Landing-Zone/LDZ/LZ_generic_infra/
+      backendServiceArm: $(backendServiceArm)
+      backendAzureRmResourceGroupName: $(backendAzureRmResourceGroupName)
+      backendAzureRmStorageAccountName: $(backendAzureRmStorageAccountName)
+      backendAzureRmContainerName: $(backendAzureRmContainerName)
+      backendAzureRmKey: terraform.tfstate
+  - task: TerraformTaskV3@3
+    name: log_vars
+    displayName: 'Terraform : plan'
+    inputs:
+      command: plan
+      workingDirectory: infra/ARM-Landing-Zone/LDZ/LZ_generic_infra/
+      commandOptions: '-var-file TF_auto_var.auto.tfvars'
+      environmentServiceNameAzureRM:  $(backendServiceArm)
+      backendAzureRmKey: terraform.tfstate
+  - task: TerraformTaskV3@3
+    displayName: 'Terraform : apply'
+    inputs:
+      command: apply
+      workingDirectory: infra/ARM-Landing-Zone/LDZ/LZ_generic_infra/
+      commandOptions: '-var-file TF_auto_var.auto.tfvars '
+      environmentServiceNameAzureRM: $(backendServiceArm)
+      backendAzureRmKey: terraform.tfstate
+      
+  # - task: TerraformTaskV3@3
+  #   displayName: 'Terraform : destroy'
+  #   condition: always()
+  #   continueOnError: True
+  #   inputs:
+  #     command: destroy
+  #     workingDirectory: infra/ARM-Landing-Zone/LDZ/LZ_generic_infra
+  #     commandOptions: '-var-file TF_auto_var.auto.tfvars '
+  #     environmentServiceNameAzureRM: $(backendServiceArm)
+  #     backendServiceArm: $(backendServiceArm)
+...   
+#test
